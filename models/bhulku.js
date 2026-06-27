@@ -3,25 +3,24 @@ const moment = require("moment");
 
 const bhulkuschema = new mongoose.Schema(
   {
-    Member_id: { type: String, require: true },
+    Member_id: { type: String, required: true },
     sabha_id: {
       type: String,
       enum: ["Andheri", "vile-parle", "santacruz"],
-      require: true,
     },
-    Reference_Name: { type: String, require: true },
-    First_Name: { type: String, require: true },
-    Middle_Name: { type: String, require: true },
-    Last_Name: { type: String, require: true },
+    Reference_Name: { type: String },
+    First_Name: { type: String, required: true },
+    Middle_Name: { type: String },
+    Last_Name: { type: String },
     NickName: { type: String },
     user_type: { type: String },
-    Gender: { type: String, enum: ["Male", "Female"], require: true },
-    Date_Of_Birth: { type: Date, require: true, trim: true },
-    Address: { type: String, require: true },
-    Mobile: { type: Number, require: true },
+    Gender: { type: String, enum: ["Male", "Female"] },
+    Date_Of_Birth: { type: Date, trim: true },
+    Address: { type: String, required: true },
+    Mobile: { type: Number, required: true },
     Home_Phone: { type: Number },
     Office_Phone: { type: Number },
-    email: { type: String, require: true },
+    email: { type: String },
     Educational_Qualification: {
       type: String,
       enum: [
@@ -37,8 +36,8 @@ const bhulkuschema = new mongoose.Schema(
     password: { type: String },
     Educational_Status: { type: String, enum: ["Pursuing", "Completed"] },
     Attending_Sabha: { type: String, enum: ["Yes", "No"] },
-    Follow_Up_Name: { type: String, require: true },
-    Sabha_Joining_Date: { type: Date, require: true },
+    Follow_Up_Name: { type: String },
+    Sabha_Joining_Date: { type: Date },
     Occupation: { type: String },
     Marital_Status: { type: String, enum: ["Married", "Unmarried"] },
     Blood_Group: { type: String, enum: ["A", "B", "AB", "O"] },
@@ -50,17 +49,12 @@ const bhulkuschema = new mongoose.Schema(
     },
     createdAt: { type: Date, default: Date.now },
   },
-  {
-    timestamps: true,
-  },
-  { _id: false },
-  { __v: false }
+  { timestamps: true }
 );
 
+// Store createdAt in IST.
 bhulkuschema.pre("save", function (next) {
-  // Convert GMT to IST using Moment.js
   this.createdAt = moment.utc(this.createdAt).utcOffset("+05:30").toDate();
-
   next();
 });
 

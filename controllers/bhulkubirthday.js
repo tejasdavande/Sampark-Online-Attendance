@@ -1,14 +1,11 @@
 const Bhulku = require("../models/bhulku");
-const mongoose = require("mongoose");
+const asyncHandler = require("../common/asyncHandler");
 
-//To get birthday by passing day
-
-const bydate = async (req, res, next) => {
+// GET /birthday/day?date=YYYY-MM-DD — birthdays on a given day
+const bydate = asyncHandler(async (req, res) => {
   const date = new Date(req.query.date || Date.now());
   const day = date.getDate();
   const month = date.getMonth() + 1;
-
-  console.log(day, month);
 
   const fetchbhulku = await Bhulku.aggregate([
     {
@@ -20,22 +17,16 @@ const bydate = async (req, res, next) => {
         mobile: "$Mobile",
       },
     },
-    {
-      $match: { month: month, day: day },
-    },
+    { $match: { month, day } },
   ]);
 
-  res
-    .status(200)
-    .json({ message: "please get your birthday list", fetchbhulku });
-};
+  res.status(200).json({ message: "Birthday list", count: fetchbhulku.length, fetchbhulku });
+});
 
-//To get birthday by passing month
-
-const bymonth = async (req, res, next) => {
-  console.log(req.query.date); //in postman dont leave space while enter pass the query//
+// GET /birthday/month?date=YYYY-MM-DD — birthdays in a given month
+const bymonth = asyncHandler(async (req, res) => {
   const date = new Date(req.query.date);
-  const month = date.getMonth() + 1;   // try this by moment//
+  const month = date.getMonth() + 1;
 
   const fetchbhulku = await Bhulku.aggregate([
     {
@@ -46,17 +37,14 @@ const bymonth = async (req, res, next) => {
         mobile: "$Mobile",
       },
     },
-    {
-      $match: { month: month },
-    },
+    { $match: { month } },
   ]);
-  res
-    .status(200)
-    .json({ message: "please get your birthday list", fetchbhulku });
-};
 
-//To get birthday by passing range
-const byrange = async (req, res, next) => {
+  res.status(200).json({ message: "Birthday list", count: fetchbhulku.length, fetchbhulku });
+});
+
+// GET /birthday/range — birthdays within a day/month range
+const byrange = asyncHandler(async (req, res) => {
   const fromdate = new Date(req.query.dateOfbirth.gte);
   const todate = new Date(req.query.dateOfbirth.lte);
   const fromday = fromdate.getDate();
@@ -75,7 +63,6 @@ const byrange = async (req, res, next) => {
         dateOfbirth: "$Date_Of_Birth",
       },
     },
-
     {
       $match: {
         month: { $gte: frommonth, $lte: tomonth },
@@ -85,9 +72,10 @@ const byrange = async (req, res, next) => {
   ]);
 
   res.status(200).json({
-    message: "please get your birthday list for provided range",
+    message: "Birthday list for provided range",
+    count: fetchbhulku.length,
     fetchbhulku,
   });
-};
+});
 
 module.exports = { bydate, bymonth, byrange };

@@ -1,135 +1,96 @@
 const mongoose = require("mongoose");
 const Attendance = require("../models/attendance");
-const sabha = require("../models/sabha");
+const asyncHandler = require("../common/asyncHandler");
 
-// const getAllAttendance = async (req, res, next) => {
-//   try {
-//     const allbhulkuattendance = await Attendance.find({});
-//     res
-//       .status(200)
-//       .json({ message: "Please find your all attedance", allbhulkuattendance });
-//   } catch (error) {
-//     throw error.message;
-//   }
-// };
-
-const createAttendance = async (req, res, next) => {
-  try {
-    const { sabha, sabhadate } = req.body;
-    const checksabhaattendance = await Attendance.findOne({
-      sabha: sabha,
-      sabhadate: sabhadate,
-    });
-    if (checksabhaattendance) {
-      res
-        .status(400)
-        .json({ message: "Attedance for this sabha is already created" });
-    } else {
-      const bhulkuattendance = await Attendance.create({
-        sabha,
-        sabhadate,
-        attendees: req.body.attendees,
-        nonattendees: req.body.nonattendees,
-      });
-      console.log(bhulkuattendance);
-      res.status(200).json({
-        message: "Your attendance was created succesfully",
-        bhulkuattendance,
-      });
-    }
-  } catch (error) {
-    throw error.message;
+// POST /attendance/newattedance — create attendance for a sabha + date
+const createAttendance = asyncHandler(async (req, res) => {
+  const { sabha, sabhadate } = req.body;
+  if (!sabha || !sabhadate) {
+    res.status(400);
+    throw new Error("sabha and sabhadate are required");
   }
-};
 
-const getAttendance = async (req, res, next) => {
-  try {
-    const { id, sabhadate } = req.query;
-    const date = new Date(sabhadate); // here we covert string date to Date formate saved in DB.//
-    const sabhaattedance = await Attendance.findOne(
-      {
-        sabha: id,
-        sabhadate: date,
-      },
-      { sabhadate: 1, _id: 0, attendees: 1, nonattendees: 1, sabha: 1 }
-    ).populate(["attendees", "nonattendees"]); // with use this populate we can fetch all details of id//
-    const { attendees, nonattendees } = sabhaattedance;
-    res.status(200).json({
-      message: "Please find your attedance of attendees",
-      attendees,
-      nonattendees,
-    });
-  } catch (error) {
-    throw error.message;
+  const existing = await Attendance.findOne({ sabha, sabhadate });
+  if (existing) {
+    res.status(400);
+    throw new Error("Attendance for this sabha is already created");
   }
-};
 
-const updateAttendancebyid = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      //for checking id provided by the user is valid or not//
-      const updateattendance = await Attendance.updateOne(
-        { _id: id },
-        { $set: req.body }
-      );
-      console.log(updateattendance);
-      res.status(200).json({
-        message: "Please find your updated attedance",
-        updateattendance,
-      });
-    } else {
-      res.status(400).json({ message: "please provide correct ID" });
-    }
-  } catch (error) {
-    throw error.message;
-  }
-};
+  const attendance = await Attendance.create({
+    sabha,
+    sabhadate,
+    attendees: req.body.attendees,
+    nonattendees: req.body.nonattendees,
+  });
+  res
+    .status(201)
+    .json({ message: "Your attendance was created successfully", attendance });
+});
 
-const updateAttendancebydateandsabha = async (req, res, next) => {
-  try {
-    const { sabha, sabhadate } = req.body;
-    if (sabha || sabhadate) {
-      const sabhadateis = new Date(sabhadate);
-      const updateattendance = await Attendance.updateOne(
-        { sabha: sabha, sabhadate: sabhadateis },
-        { $set: req.body }
-      );
-      console.log(updateattendance);
-      res.status(200).json({
-        message: "Please find your updated attedance",
-        updateattendance,
-      });
-    } else {
-      res
-        .status(400)
-        .json({ message: "please provide correct sabha and sabhadate" });
-    }
-  } catch (error) {
-    throw error.message;
-  }
-};
+// GET /attendance/search?id=<sabhaId>&sabhadate=<date>
+const getAttendance = asyncHandler(async (req, res) => {
+  const { id, sabhadate } = req.query;
+  const attendance = await Attendance.findOne(
+    { sabha: id, sabhadate: new Date(sabhadate) },
+    { sabhadate: 1, _id: 0, attendees: 1, nonattendees: 1, sabha: 1 }
+  ).populate(["attendees", "nonattendees"]);
 
-const deleteAttendance = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      //for checking id provided by the user is valid or not//
-      const deleteattendance = await Attendance.deleteOne({ _id: id });
-      console.log(deleteattendance);
-      res.status(200).json({
-        message: "Attendance was deleted succesfully",
-      });
-    } else {
-      res.status(400).json({ message: "please provide correct ID" });
-    }
-  } catch (error) {
-    throw error.message;
+  if (!attendance) {
+    res.status(404);
+    throw new Error("No attendance found for the given sabha and date");
   }
-};
+
+  res.status(200).json({
+    message: "Please find your attendance",
+    attendees: attendance.attendees,
+    nonattendees: attendance.nonattendees,
+  });
+});
+
+// PATCH /attendance/:id — update by attendance id (admin)
+const updateAttendancebyid = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error("Please provide a correct ID");
+  }
+  const updateattendance = await Attendance.updateOne(
+    { _id: id },
+    { $set: req.body }
+  );
+  res
+    .status(200)
+    .json({ message: "Attendance updated", updateattendance });
+});
+
+// PATCH /attendance — update by sabha + date (admin)
+const updateAttendancebydateandsabha = asyncHandler(async (req, res) => {
+  const { sabha, sabhadate } = req.body;
+  if (!sabha && !sabhadate) {
+    res.status(400);
+    throw new Error("Please provide a correct sabha and sabhadate");
+  }
+  const updateattendance = await Attendance.updateOne(
+    { sabha, sabhadate: new Date(sabhadate) },
+    { $set: req.body }
+  );
+  res
+    .status(200)
+    .json({ message: "Attendance updated", updateattendance });
+});
+
+// DELETE /attendance/:id (admin)
+const deleteAttendance = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error("Please provide a correct ID");
+  }
+  await Attendance.deleteOne({ _id: id });
+  res.status(200).json({ message: "Attendance was deleted successfully" });
+});
 
 module.exports = {
-  // getAllAttendance,
   createAttendance,
   getAttendance,
   updateAttendancebyid,

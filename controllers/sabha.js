@@ -1,71 +1,70 @@
-const mongoose = require("mongoose");
 const Sabha = require("../models/sabha");
-const Bhulku = require("../models/bhulku");
+const asyncHandler = require("../common/asyncHandler");
 
-//To fetch details of all sabha in database
-const getsabhas = async (req, res, next) => {
-  try {
-    const sabhadetails = await Sabha.find({});
-    res
-      .status(200)
-      .json({ message: "Please find your all sabha", sabhadetails });
-  } catch (error) {
-    throw error.message;
+// GET /sabha — all sabhas
+const getsabhas = asyncHandler(async (req, res) => {
+  const sabhadetails = await Sabha.find({}).populate("sabha_leader");
+  res.status(200).json({ count: sabhadetails.length, sabhadetails });
+});
+
+// GET /sabha/:id — single sabha
+const getsabha = asyncHandler(async (req, res) => {
+  const sabha = await Sabha.findById(req.params.id).populate("sabha_leader");
+  if (!sabha) {
+    res.status(404);
+    throw new Error("Sabha not found");
   }
-};
+  res.status(200).json(sabha);
+});
 
-//To create new sabha in database
-const createsabha = async (req, res, next) => {
-  try {
-    const { sabha_name, sabha_type, sabha_location, sabha_leader } = req.body;
-    const checksabha = await Sabha.findOne({ sabha_name });
-    if (checksabha) {
-      res.status(401);
-      throw new Error("This sabha is already exist in database");
-    } else {
-      const newsabha = await Sabha.create({
-        sabha_name,
-        sabha_type,
-        sabha_location,
-        sabha_leader,
-      });
-      console.log("new sabha is ", newsabha);
-      res
-        .status(200)
-        .json({ message: "Your sabha was created succesfully", newsabha });
-    }
-  } catch (error) {
-    throw res.status(400).json({ error });
+// POST /sabha/register — create a sabha (admin)
+const createsabha = asyncHandler(async (req, res) => {
+  const { sabha_name, sabha_type, sabha_location, sabha_leader } = req.body;
+  if (!sabha_name || !sabha_type || !sabha_location) {
+    res.status(400);
+    throw new Error("sabha_name, sabha_type and sabha_location are required");
   }
-};
 
-
-const getsabha = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: "Please find your sabha" });
-  } catch (error) {
-    throw error.message;
+  const existing = await Sabha.findOne({ sabha_name });
+  if (existing) {
+    res.status(400);
+    throw new Error("This sabha already exists in database");
   }
-};
 
-//To update sabha details by thier unique id
-const updatesabha = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: "Please find your updated sabha" });
-  } catch (error) {
-    throw error.message;
+  const newsabha = await Sabha.create({
+    sabha_name,
+    sabha_type,
+    sabha_location,
+    sabha_leader,
+  });
+  res
+    .status(201)
+    .json({ message: "Your sabha was created successfully", newsabha });
+});
+
+// PATCH /sabha/:id — update a sabha (admin)
+const updatesabha = asyncHandler(async (req, res) => {
+  const updated = await Sabha.findByIdAndUpdate(
+    req.params.id,
+    { $set: req.body },
+    { new: true, runValidators: true }
+  );
+  if (!updated) {
+    res.status(404);
+    throw new Error("Sabha not found");
   }
-};
+  res.status(200).json({ message: "Sabha updated successfully", sabha: updated });
+});
 
-
-//To delete sabha and thier details by thier unique id
-const deletesabha = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: "Your sabha was deleted succesfully" });
-  } catch (error) {
-    throw error.message;
+// DELETE /sabha/:id — delete a sabha (admin)
+const deletesabha = asyncHandler(async (req, res) => {
+  const deleted = await Sabha.findByIdAndDelete(req.params.id);
+  if (!deleted) {
+    res.status(404);
+    throw new Error("Sabha not found");
   }
-};
+  res.status(200).json({ message: "Your sabha was deleted successfully" });
+});
 
 module.exports = {
   getsabha,

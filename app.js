@@ -1,30 +1,46 @@
 const express = require("express");
 const cors = require("cors");
-const errorHandler = require("./middleware/errorhandler");
+const morgan = require("morgan");
+const swaggerUi = require("swagger-ui-express");
 
-//call of database function
+const errorHandler = require("./middleware/errorhandler");
+const openapiSpec = require("./docs/openapi.json");
+
+// Connect to the database
 const connectedDb = require("./common/db");
 connectedDb();
 
 const app = express();
 
-//For body Parsing//
+// ---- Global middleware ----
+app.use(cors());
+app.use(morgan("dev"));
 app.use(express.json());
 
-// Routes //
-const bhulkuroutes = require("./routes/bhulku");
-const attedanceroutes = require("./routes/attendance");
-const userroutes = require("./routes/user");
-const sabharoutes = require("./routes/sabha");
-const birthdayroutes = require("./routes/bhulkubirthday");
+// ---- API documentation (Swagger UI) ----
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+app.get("/openapi.json", (req, res) => res.json(openapiSpec));
 
-//middlewares//
-app.use(cors());
-app.use("/bhulku", bhulkuroutes);
-app.use("/attendance", attedanceroutes);
-app.use("/user", userroutes);
-app.use("/sabha", sabharoutes);
-app.use("/birthday",birthdayroutes);
+// ---- Service info & health ----
+app.get("/", (req, res) =>
+  res.json({ name: "Sampark Online Attendance API", docs: "/api-docs", health: "/health" })
+);
+app.get("/health", (req, res) =>
+  res.json({ status: "ok", uptime: process.uptime() })
+);
+
+// ---- Routes ----
+app.use("/bhulku", require("./routes/bhulku"));
+app.use("/attendance", require("./routes/attendance"));
+app.use("/user", require("./routes/user"));
+app.use("/sabha", require("./routes/sabha"));
+app.use("/birthday", require("./routes/bhulkubirthday"));
+
+// ---- 404 + central error handler ----
+app.use((req, res, next) => {
+  res.status(404);
+  next(new Error("Not found"));
+});
 app.use(errorHandler);
 
 module.exports = app;

@@ -1,133 +1,102 @@
-const mongoose = require("mongoose");
 const User = require("../models/user");
-const bcrypt = require("bcrypt"); //it is use for password hashing//
-const jwt = require("jsonwebtoken"); // it is use for token generation//
-const bhulku = require("../models/bhulku");
-require("dotenv").config(); // extension to use dotenv//
+const bcrypt = require("bcrypt"); // password hashing
+const jwt = require("jsonwebtoken"); // token generation
+const asyncHandler = require("../common/asyncHandler");
+require("dotenv").config();
 
-//signup the new user
-const createuser = async (req, res, next) => {
-  console.log(req.body);
-  try {
-    const { username, email, password } = req.body; //destructring of object data//
-    if (!username || !email || !password) {
-      res.status(400);
-      throw new Error("All field are mandatory");
-    } else {
-      const checkuser = await User.findOne({ username: username });
-      if (checkuser) {
-        res.status(400);
-        throw new Error("User is already registed");
-      } else {
-        const hashpassword = await bcrypt.hash(password, 10);
-        console.log("my hashed password is", hashpassword);
-
-        const newuser = await User.create({
-          username,
-          email,
-          password: hashpassword,
-          user_type: req.body.user_type,
-          //   _id: new mongoose.Types.ObjectId(),
-        });
-        console.log(newuser);
-      }
-    }
-    res.status(200).json({ message: "user was created" });
-  } catch (error) {
-    throw error.message;
+// POST /user/signup — register a new user
+const createuser = asyncHandler(async (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    res.status(400);
+    throw new Error("All fields are mandatory");
   }
-};
 
-//login the existing user with token generation
-const loginuser = async (req, res, next) => {
-  try {
-    const { username, password } = await req.body;
-    if (!username || !password) {
-      res.status(400);
-      throw new Error("Please provide username and password");
-    } else {
-      const checkbhulku = await bhulku.findOne({ username: username });
-      if (
-        checkbhulku &&
-        (await bcrypt.compare(password, checkbhulku.password)) //first password is plain text password//
-      ) {
-        const accesstoken = jwt.sign(
-          {
-            user: {
-              email: checkbhulku.email,
-              username: checkbhulku.username,
-              user_type: checkbhulku.user_type,  //flag//
-            },
-          },
-          process.env.PRIVATEKEY,
-          { expiresIn: "12h" }
-        );
-        res.status(200).json({ accesstoken });
-      } else {
-        res.status(401);
-        throw new Error("Please provide correct username and password");
-      }
-    }
-  } catch (error) {
-    throw error.message;
+  const existing = await User.findOne({ username });
+  if (existing) {
+    res.status(400);
+    throw new Error("User is already registered");
   }
-};
 
-//To fetch all users in database
-const getusers = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: "please get your all register users" });
-  } catch (error) {
-    throw error.message;
+  const hashpassword = await bcrypt.hash(password, 10);
+  const user = await User.create({
+    username,
+    email,
+    password: hashpassword,
+    user_type: req.body.user_type,
+  });
+
+  res.status(201).json({ message: "User was created", userId: user._id });
+});
+
+// POST /user/login — authenticate and return a JWT
+const loginuser = asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400);
+    throw new Error("Please provide username and password");
   }
-};
 
-//To fetch single user by thier unique id
-const getuser = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: "Please get your user" });
-  } catch (error) {
-    throw error.message;
-  }
-};
-
-//To delete single user by thier unique id
-const deleteuser = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    const deletebhulku = await User.deleteOne({ _id: id });
-    if (deletebhulku) {
-      res.status(200).json({ message: " user was deleted succesfully" });
-    }
-  } catch (error) {
-    throw error.message;
-  }
-};
-
-const newuser = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    console.log(id);
-    let passwordis = req.body.password;
-    const useris = await bhulku.findOne(
-      { _id: id },
-      { email: 1, username: 1, user_type: 1 }
+  const user = await User.findOne({ username });
+  if (user && (await bcrypt.compare(password, user.password))) {
+    const accesstoken = jwt.sign(
+      {
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          user_type: user.user_type,
+        },
+      },
+      process.env.PRIVATEKEY,
+      { expiresIn: "12h" }
     );
-    const password = await bcrypt.hash(passwordis, 10);
-    // console.log(typeof password);
-
-    const updatepassword = await bhulku.updateOne(
-      { _id: id },
-      { $set: { password: password, username: req.body.username } }
-    );
-    console.log(updatepassword);
-    res
-      .status(201)
-      .json({ message: "password updated successfully", password });
-  } catch (error) {
-    throw error.message;
+    return res.status(200).json({ accesstoken });
   }
-};
+
+  res.status(401);
+  throw new Error("Please provide correct username and password");
+});
+
+// GET /user — list all users (admin)
+const getusers = asyncHandler(async (req, res) => {
+  const users = await User.find().select("-password");
+  res.status(200).json({ count: users.length, users });
+});
+
+// GET /user/:id — fetch a single user (admin)
+const getuser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select("-password");
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  res.status(200).json(user);
+});
+
+// DELETE /user/:id — remove a user (admin)
+const deleteuser = asyncHandler(async (req, res) => {
+  const result = await User.deleteOne({ _id: req.params.id });
+  if (result.deletedCount === 0) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  res.status(200).json({ message: "User was deleted successfully" });
+});
+
+// PATCH /user/newpassword/:id — reset a user's password (admin)
+const newuser = asyncHandler(async (req, res) => {
+  const hashed = await bcrypt.hash(req.body.password, 10);
+  const update = await User.updateOne(
+    { _id: req.params.id },
+    { $set: { password: hashed, username: req.body.username } }
+  );
+  if (update.matchedCount === 0) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  res.status(200).json({ message: "Password updated successfully" });
+});
 
 module.exports = {
   createuser,

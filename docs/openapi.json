@@ -1,0 +1,156 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sampark Online Attendance API",
+    "version": "1.0.0",
+    "description": "A RESTful API to register members (bhulku), organise sabhas, and record & query attendance and birthdays. Authentication is JWT-based with role checks for privileged operations.",
+    "contact": { "name": "Tejas Davande", "url": "https://github.com/tejasdavande/Sampark-Online-Attendance" },
+    "license": { "name": "ISC" }
+  },
+  "servers": [{ "url": "http://localhost:5000", "description": "Local development server" }],
+  "tags": [
+    { "name": "Users", "description": "Account sign up, login and admin management" },
+    { "name": "Bhulku", "description": "Members (bhulku) management" },
+    { "name": "Sabha", "description": "Sabha (gathering) management" },
+    { "name": "Attendance", "description": "Record and query attendance" },
+    { "name": "Birthday", "description": "Query member birthdays" },
+    { "name": "System", "description": "Service health" }
+  ],
+  "paths": {
+    "/health": {
+      "get": { "tags": ["System"], "summary": "Health check", "responses": { "200": { "description": "Service is up" } } }
+    },
+    "/user/signup": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Register a new user",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SignupInput" } } } },
+        "responses": { "201": { "description": "User created" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/user/login": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Log in and receive a JWT",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginInput" } } } },
+        "responses": { "200": { "description": "Authenticated", "content": { "application/json": { "example": { "accesstoken": "eyJ..." } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/user": {
+      "get": { "tags": ["Users"], "summary": "List all users (admin)", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "List of users" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/user/{id}": {
+      "get": { "tags": ["Users"], "summary": "Get a user (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "User" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "delete": { "tags": ["Users"], "summary": "Delete a user (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Deleted" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/user/newpassword/{id}": {
+      "patch": { "tags": ["Users"], "summary": "Reset a user's password (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "username": { "type": "string" }, "password": { "type": "string" } } } } } }, "responses": { "200": { "description": "Password updated" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/bhulku": {
+      "get": { "tags": ["Bhulku"], "summary": "List members", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "List of members" } } },
+      "post": { "tags": ["Bhulku"], "summary": "Create a member", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BhulkuInput" } } } }, "responses": { "201": { "description": "Created" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/bhulku/{id}": {
+      "get": { "tags": ["Bhulku"], "summary": "Get a member", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Member" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "patch": { "tags": ["Bhulku"], "summary": "Update a member", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Updated" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "delete": { "tags": ["Bhulku"], "summary": "Delete a member (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Deleted" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/sabha": {
+      "get": { "tags": ["Sabha"], "summary": "List sabhas", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "List of sabhas" } } }
+    },
+    "/sabha/{id}": {
+      "get": { "tags": ["Sabha"], "summary": "Get a sabha", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Sabha" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "patch": { "tags": ["Sabha"], "summary": "Update a sabha (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Updated" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "delete": { "tags": ["Sabha"], "summary": "Delete a sabha (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Deleted" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/sabha/register": {
+      "post": { "tags": ["Sabha"], "summary": "Create a sabha (admin)", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SabhaInput" } } } }, "responses": { "201": { "description": "Created" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/attendance/newattedance": {
+      "post": { "tags": ["Attendance"], "summary": "Create attendance for a sabha and date", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AttendanceInput" } } } }, "responses": { "201": { "description": "Created" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/attendance/search": {
+      "get": { "tags": ["Attendance"], "summary": "Find attendance by sabha id and date", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "sabhadate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }], "responses": { "200": { "description": "Attendance" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/attendance/{id}": {
+      "patch": { "tags": ["Attendance"], "summary": "Update attendance by id (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" } } },
+      "delete": { "tags": ["Attendance"], "summary": "Delete attendance by id (admin)", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/Id" }], "responses": { "200": { "description": "Deleted" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/attendance": {
+      "patch": { "tags": ["Attendance"], "summary": "Update attendance by sabha and date (admin)", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AttendanceInput" } } } }, "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/birthday/day": {
+      "get": { "tags": ["Birthday"], "summary": "Birthdays on a given day", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } }], "responses": { "200": { "description": "Birthday list" } } }
+    },
+    "/birthday/month": {
+      "get": { "tags": ["Birthday"], "summary": "Birthdays in a given month", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } }], "responses": { "200": { "description": "Birthday list" } } }
+    },
+    "/birthday/range": {
+      "get": { "tags": ["Birthday"], "summary": "Birthdays within a range", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Birthday list" } } }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } },
+    "parameters": {
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "schemas": {
+      "SignupInput": {
+        "type": "object",
+        "required": ["username", "email", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "admin1" },
+          "email": { "type": "string", "format": "email", "example": "admin@example.com" },
+          "password": { "type": "string", "format": "password", "example": "secret123" },
+          "user_type": { "type": "string", "enum": ["admin", "sabhaleader"], "example": "admin" }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "admin1" },
+          "password": { "type": "string", "format": "password", "example": "secret123" }
+        }
+      },
+      "BhulkuInput": {
+        "type": "object",
+        "required": ["First_Name", "Address", "Mobile"],
+        "properties": {
+          "First_Name": { "type": "string", "example": "Tejas" },
+          "Last_Name": { "type": "string", "example": "Davande" },
+          "Address": { "type": "string", "example": "Pune" },
+          "Mobile": { "type": "number", "example": 9876543210 },
+          "Gender": { "type": "string", "enum": ["Male", "Female"], "example": "Male" },
+          "Date_Of_Birth": { "type": "string", "format": "date", "example": "1999-06-27" }
+        }
+      },
+      "SabhaInput": {
+        "type": "object",
+        "required": ["sabha_name", "sabha_type", "sabha_location"],
+        "properties": {
+          "sabha_name": { "type": "string", "example": "Andheri Yuvak Sabha" },
+          "sabha_type": { "type": "string", "example": "Yuvak" },
+          "sabha_location": { "type": "string", "example": "Andheri" },
+          "sabha_leader": { "type": "string", "description": "Bhulku ObjectId" }
+        }
+      },
+      "AttendanceInput": {
+        "type": "object",
+        "required": ["sabha", "sabhadate"],
+        "properties": {
+          "sabha": { "type": "string", "description": "Sabha ObjectId" },
+          "sabhadate": { "type": "string", "format": "date", "example": "2026-06-27" },
+          "attendees": { "type": "array", "items": { "type": "string" } },
+          "nonattendees": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Error": { "type": "object", "properties": { "title": { "type": "string" }, "message": { "type": "string" } } }
+    },
+    "responses": {
+      "BadRequest": { "description": "Invalid input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Missing or invalid token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Resource not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    }
+  }
+}
